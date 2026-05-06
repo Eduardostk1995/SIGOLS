@@ -30,7 +30,7 @@ const documents = [
   {id:6, name:'POL-DIR-002 - Política da Qualidade', type:'Política', folder:'00_Direção', created:'16/02/2023 10:20:18', status:'Publicado', version:'2.1', publish:'20/03/2026', owner:'Direção'},
 ];
 
-const boms = [let boms = [];
+let boms = [];
 
 async function carregarBOMReal() {
 
