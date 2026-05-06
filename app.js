@@ -31,65 +31,125 @@ const documents = [
 ];
 
 let boms = [];
+let bomAll = [];
+
+const bomState = {
+  status: 'todos',
+  processo: 'todos',
+  responsavel: 'todos',
+  ano: 'todos',
+  busca: '',
+  page: 1,
+  perPage: 50
+};
+
+function dataBRParaDate(valor) {
+  if (!valor || valor === '-') return new Date(0);
+  const partes = String(valor).split('/');
+  if (partes.length !== 3) return new Date(0);
+  return new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+}
+
+function textoSeguro(valor, padrao = '-') {
+  return valor && String(valor).trim() ? String(valor).trim() : padrao;
+}
+
+function statusBom(item) {
+  return item.encerramento ? 'Encerrado' : 'Em aberto';
+}
 
 async function carregarBOMReal() {
-
   try {
-
-    const response = await fetch(
-      "/.netlify/functions/relatorio-bom-bi"
-    );
-
+    const response = await fetch("/.netlify/functions/relatorio-bom-bi");
     const resultado = await response.json();
-
-    console.log("BOM REAL:", resultado);
-
     const dados = resultado.data || [];
 
-    boms = dados.map((item, index) => ({
-
+    bomAll = dados.map((item, index) => ({
       id: item.bom || index + 1,
-
-      type: item.origem || "BOM",
-
-      issuer: item.emitente || "-",
-
-      owner: item.responsavel_encerramento || "-",
-
-      local: item.local || "-",
-
-      process: item.processos || "-",
-
-      date: item.criacao || "-",
-
-      due: item.data_encerramento || "-",
-
-      status: item.encerramento
-        ? "Encerrado"
-        : "Em aberto",
-
-      severity: item.risco || "Média",
-
-      nature: item.natureza || "Sem descrição",
-
-      immediate: item.causa_raiz_5m || "-",
-
-      cause: item.causa_raiz_5porques || "-",
-
-      action: item.evidencia || "-"
-
+      type: textoSeguro(item.origem, "BOM"),
+      issuer: textoSeguro(item.emitente),
+      owner: textoSeguro(item.responsavel_encerramento || item.destinatario),
+      local: textoSeguro(item.local),
+      process: textoSeguro(item.processos),
+      date: textoSeguro(item.criacao),
+      due: textoSeguro(item.data_encerramento),
+      status: statusBom(item),
+      severity: textoSeguro(item.risco, "Não classificado"),
+      nature: textoSeguro(item.natureza || item.requisito, "Sem descrição"),
+      immediate: textoSeguro(item.causa_raiz_5m),
+      cause: textoSeguro(item.causa_raiz_5porques),
+      action: textoSeguro(item.evidencia),
+      requisito: textoSeguro(item.requisito),
+      encerramento: textoSeguro(item.encerramento, '')
     }));
 
-    console.log("BOMS TRATADOS:", boms);
+    bomAll.sort((a, b) => dataBRParaDate(b.date) - dataBRParaDate(a.date));
 
+    boms = bomAll.slice(0, bomState.perPage);
     render();
 
   } catch (error) {
-
     console.error("Erro ao carregar BOM:", error);
+    showToast("Erro ao carregar dados reais de BOM");
+  }
+}
 
+function getBOMFiltrado() {
+  let lista = [...bomAll];
+
+  if (bomState.status !== 'todos') {
+    lista = lista.filter(x => x.status === bomState.status);
   }
 
+  if (bomState.processo !== 'todos') {
+    lista = lista.filter(x => x.process === bomState.processo);
+  }
+
+  if (bomState.responsavel !== 'todos') {
+    lista = lista.filter(x => x.owner === bomState.responsavel);
+  }
+
+  if (bomState.ano !== 'todos') {
+    lista = lista.filter(x => String(x.date).includes(`/${bomState.ano}`));
+  }
+
+  if (bomState.busca) {
+    const termo = bomState.busca.toLowerCase();
+    lista = lista.filter(x =>
+      `${x.id} ${x.type} ${x.issuer} ${x.owner} ${x.local} ${x.process} ${x.nature} ${x.requisito}`
+        .toLowerCase()
+        .includes(termo)
+    );
+  }
+
+  return lista;
+}
+
+function atualizarFiltroBOM(campo, valor) {
+  bomState[campo] = valor;
+  bomState.page = 1;
+  render();
+}
+
+function limparFiltrosBOM() {
+  bomState.status = 'todos';
+  bomState.processo = 'todos';
+  bomState.responsavel = 'todos';
+  bomState.ano = 'todos';
+  bomState.busca = '';
+  bomState.page = 1;
+  render();
+}
+
+function mudarPaginaBOM(direcao) {
+  const total = getBOMFiltrado().length;
+  const totalPaginas = Math.max(1, Math.ceil(total / bomState.perPage));
+  bomState.page = Math.min(Math.max(1, bomState.page + direcao), totalPaginas);
+  render();
+}
+
+function opcoesUnicas(lista, campo) {
+  return [...new Set(lista.map(x => x[campo]).filter(x => x && x !== '-'))].sort();
 }
 
 const ros = [
@@ -209,15 +269,138 @@ function docsPage(){
     <section class="panel"><div class="filters"><input placeholder="Buscar documento"><select><option>Status: todos</option><option>Publicado</option><option>Em consenso</option><option>Revisão</option></select><input type="date" title="Buscar por validade"></div>${docTable(documents)}</section>`, 'Documentos', 'Gestão eletrônica de documentos do sistema de gestão.');
 }
 
-function listRecords(module){
-  const data = module==='bom'?boms:module==='ro'?ros:grs;
-  const title = module==='bom'?'BOM - Boletim de Ocorrência e Melhoria':module==='ro'?'RO - Registro de Ocorrência':'Gestão de Resultados';
-  const subtitle = module==='bom'?'Tratamento de ocorrências, não conformidades, ações imediatas e planos de ação.':module==='ro'?'Registro, triagem e acompanhamento de ocorrências operacionais.':'Objetivos, metas, indicadores, monitoramentos e planos de ação.';
-  const rows = module==='gr' ? data.map(r=>`<tr><td><b>GR ${r.id}</b><small>${r.process}</small></td><td>${r.objective}</td><td>${r.owner}</td><td>${r.deadline}</td><td>${progress(r.result)}</td><td>${badge(r.status)}</td><td><button class="btn small" onclick="openRecord('gr',${r.id})">Abrir</button></td></tr>`).join('') : data.map(r=>`<tr><td><b>${module.toUpperCase()} ${r.id}</b><small>${r.type} · ${r.process}</small></td><td>${r.nature}</td><td>${r.owner}</td><td>${r.due}</td><td>${badge(r.status)}</td><td>${r.local}</td><td><button class="btn small" onclick="openRecord('${module}',${r.id})">Abrir</button></td></tr>`).join('');
-  const headers = module==='gr'?'<th>Registro</th><th>Objetivo</th><th>Responsável</th><th>Prazo</th><th>Resultado</th><th>Status</th><th></th>':'<th>Registro</th><th>Descrição</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Local</th><th></th>';
-  return shell(`<section class="module-toolbar"><div><h2>${title}</h2><p>${subtitle}</p></div><div><button class="btn">Exportar</button><button class="btn primary" onclick="showToast('Novo registro simulado')">Novo registro</button></div></section>${module==='ro'?roCharts():module==='bom'?bomCards():grCards()}<section class="panel"><div class="filters"><input placeholder="Buscar por descrição, responsável ou processo"><select><option>Status: todos</option><option>Vencido</option><option>No prazo</option><option>Encerrado</option></select><select><option>Processo: todos</option><option>Qualidade</option><option>Produção</option><option>Comercial</option></select></div><div class="table-wrap"><table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div></section>`, title.split(' - ')[0], subtitle);
+function listRecords(module) {
+  const isBom = module === 'bom';
+
+  let data = module === 'bom' ? getBOMFiltrado() : module === 'ro' ? ros : grs;
+
+  const title = module === 'bom'
+    ? 'BOM - Boletim de Ocorrência e Melhoria'
+    : module === 'ro'
+      ? 'RO - Registro de Ocorrência'
+      : 'Gestão de Resultados';
+
+  const subtitle = module === 'bom'
+    ? 'Tratamento de ocorrências, não conformidades, riscos, ações imediatas e planos de ação.'
+    : module === 'ro'
+      ? 'Registro, triagem e acompanhamento de ocorrências operacionais.'
+      : 'Objetivos, metas, indicadores, monitoramentos e planos de ação.';
+
+  let paginacao = '';
+
+  if (isBom) {
+    const total = data.length;
+    const totalPaginas = Math.max(1, Math.ceil(total / bomState.perPage));
+    const inicio = (bomState.page - 1) * bomState.perPage;
+    const fim = inicio + bomState.perPage;
+
+    data = data.slice(inicio, fim);
+
+    paginacao = `<div class="pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:12px;">
+      <button class="btn" onclick="mudarPaginaBOM(-1)" ${bomState.page === 1 ? 'disabled' : ''}>Anterior</button>
+      <span class="muted">Página ${bomState.page} de ${totalPaginas} · ${total} registros encontrados</span>
+      <button class="btn" onclick="mudarPaginaBOM(1)" ${bomState.page === totalPaginas ? 'disabled' : ''}>Próxima</button>
+    </div>`;
+  }
+
+  const rows = module === 'gr'
+    ? data.map(r => `<tr>
+        <td><b>GR ${r.id}</b><small>${r.process}</small></td>
+        <td>${r.objective}</td>
+        <td>${r.owner}</td>
+        <td>${r.deadline}</td>
+        <td>${progress(r.result)}</td>
+        <td>${badge(r.status)}</td>
+        <td><button class="btn small" onclick="openRecord('gr',${r.id})">Abrir</button></td>
+      </tr>`).join('')
+    : data.map(r => `<tr>
+        <td><b>${module.toUpperCase()} ${r.id}</b><small>${r.type} · ${r.process}</small></td>
+        <td>${r.nature}</td>
+        <td>${r.owner}</td>
+        <td>${r.due}</td>
+        <td>${badge(r.status)}</td>
+        <td>${r.local}</td>
+        <td><button class="btn small" onclick="openRecord('${module}',${r.id})">Abrir</button></td>
+      </tr>`).join('');
+
+  const headers = module === 'gr'
+    ? '<th>Registro</th><th>Objetivo</th><th>Responsável</th><th>Prazo</th><th>Resultado</th><th>Status</th><th></th>'
+    : '<th>Registro</th><th>Descrição</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Local</th><th></th>';
+
+  const filtrosBom = isBom ? `<div class="filters">
+      <input 
+        placeholder="Buscar por número, descrição, processo, responsável ou requisito"
+        value="${bomState.busca}"
+        oninput="atualizarFiltroBOM('busca', this.value)"
+      >
+
+      <select onchange="atualizarFiltroBOM('status', this.value)">
+        <option value="todos" ${bomState.status === 'todos' ? 'selected' : ''}>Status: todos</option>
+        <option value="Em aberto" ${bomState.status === 'Em aberto' ? 'selected' : ''}>Em aberto</option>
+        <option value="Encerrado" ${bomState.status === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
+      </select>
+
+      <select onchange="atualizarFiltroBOM('processo', this.value)">
+        <option value="todos">Processo: todos</option>
+        ${opcoesUnicas(bomAll, 'process').map(p => `<option value="${p}" ${bomState.processo === p ? 'selected' : ''}>${p}</option>`).join('')}
+      </select>
+
+      <select onchange="atualizarFiltroBOM('responsavel', this.value)">
+        <option value="todos">Responsável: todos</option>
+        ${opcoesUnicas(bomAll, 'owner').map(p => `<option value="${p}" ${bomState.responsavel === p ? 'selected' : ''}>${p}</option>`).join('')}
+      </select>
+
+      <select onchange="atualizarFiltroBOM('ano', this.value)">
+        <option value="todos">Ano: todos</option>
+        ${[...new Set(bomAll.map(x => String(x.date).split('/')[2]).filter(Boolean))].sort().reverse().map(ano => `<option value="${ano}" ${bomState.ano === ano ? 'selected' : ''}>${ano}</option>`).join('')}
+      </select>
+
+      <button class="btn" onclick="limparFiltrosBOM()">Limpar filtros</button>
+    </div>` : `<div class="filters">
+      <input placeholder="Buscar por descrição, responsável ou processo">
+      <select><option>Status: todos</option><option>Vencido</option><option>No prazo</option><option>Encerrado</option></select>
+      <select><option>Processo: todos</option><option>Qualidade</option><option>Produção</option><option>Comercial</option></select>
+    </div>`;
+
+  return shell(`<section class="module-toolbar">
+      <div><h2>${title}</h2><p>${subtitle}</p></div>
+      <div><button class="btn">Exportar</button><button class="btn primary" onclick="showToast('Novo registro simulado')">Novo registro</button></div>
+    </section>
+
+    ${module === 'ro' ? roCharts() : module === 'bom' ? bomCards() : grCards()}
+
+    <section class="panel">
+      ${filtrosBom}
+      <div class="table-wrap">
+        <table>
+          <thead><tr>${headers}</tr></thead>
+          <tbody>${rows || `<tr><td colspan="7">Nenhum registro encontrado.</td></tr>`}</tbody>
+        </table>
+      </div>
+      ${paginacao}
+    </section>`, title.split(' - ')[0], subtitle);
 }
-function bomCards(){ return `<section class="mini-grid"><article><b>12</b><span>Abertos</span></article><article><b>4</b><span>Vencidos</span></article><article><b>82%</b><span>Com ação imediata</span></article><article><b>68%</b><span>Eficácia validada</span></article></section>`; }
+function bomCards() {
+  const total = bomAll.length;
+  const encerrados = bomAll.filter(x => x.status === 'Encerrado').length;
+  const abertos = total - encerrados;
+
+  const processos = opcoesUnicas(bomAll, 'process').length;
+  const percentualEncerrado = total ? Math.round((encerrados / total) * 100) : 0;
+
+  return `<section class="mini-grid">
+    <article><b>${total}</b><span>Total de BOMs</span></article>
+    <article><b>${abertos}</b><span>Em aberto</span></article>
+    <article><b>${encerrados}</b><span>Encerrados</span></article>
+    <article><b>${percentualEncerrado}%</b><span>Taxa de encerramento</span></article>
+  </section>
+  <section class="mini-grid">
+    <article><b>${processos}</b><span>Processos envolvidos</span></article>
+    <article><b>${opcoesUnicas(bomAll, 'owner').length}</b><span>Responsáveis</span></article>
+    <article><b>${opcoesUnicas(bomAll, 'severity').length}</b><span>Classificações de risco</span></article>
+    <article><b>${getBOMFiltrado().length}</b><span>Registros filtrados</span></article>
+  </section>`;
+}
 function grCards(){ return `<section class="mini-grid"><article><b>24</b><span>Metas ativas</span></article><article><b>76%</b><span>Média de resultado</span></article><article><b>9</b><span>Ações abertas</span></article><article><b>3</b><span>Metas em atenção</span></article></section>`; }
 function roCharts(){ return `<section class="analytics-grid"><article class="panel"><h2>Status dos ROs</h2><div class="bar-list"><p><span>Encerrado</span><b>40%</b></p><div><i style="width:40%"></i></div><p><span>No prazo</span><b>25%</b></p><div><i style="width:25%"></i></div><p><span>Em análise</span><b>20%</b></p><div><i style="width:20%"></i></div><p><span>Vencido</span><b>15%</b></p><div><i style="width:15%"></i></div></div></article><article class="panel"><h2>Origem dos registros</h2><div class="donut small"><span>60%</span></div><p class="muted">Maior concentração em Produção e Logística.</p></article></section>`; }
 
