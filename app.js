@@ -55,41 +55,26 @@ function textoSeguro(valor, padrao = '-') {
 }
 
 function statusBom(item) {
+  const dataEnc = textoSeguro(item.data_encerramento, '');
+  const prazo = textoSeguro(item.data_prazo || item.prazo || item['data.prazo'], '');
 
-  const encerramento = String(item.encerramento || '').trim();
-
-  if (
-    encerramento === '' ||
-    encerramento === '-' ||
-    encerramento.toLowerCase() === 'null'
-  ) {
-
-    const prazo = String(item.data_encerramento || '').trim();
-
-    if (!prazo) {
-      return 'Em aberto';
-    }
-
-    const hoje = new Date();
-
-    const partes = prazo.split('/');
-
-    if (partes.length === 3) {
-
-      const dataPrazo = new Date(
-        `${partes[2]}-${partes[1]}-${partes[0]}`
-      );
-
-      if (dataPrazo < hoje) {
-        return 'Vencido';
-      }
-
-    }
-
-    return 'No prazo';
+  if (dataEnc) {
+    return 'Encerrado';
   }
 
-  return 'Encerrado';
+  if (!prazo) {
+    return 'Sem Prazo';
+  }
+
+  const dataPrazo = dataBRParaDate(prazo);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  if (dataPrazo < hoje) {
+    return 'Vencido';
+  }
+
+  return 'No Prazo';
 }
 
 async function carregarBOMReal() {
@@ -106,7 +91,8 @@ async function carregarBOMReal() {
       local: textoSeguro(item.local),
       process: textoSeguro(item.processos),
       date: textoSeguro(item.criacao),
-      due: textoSeguro(item.data_encerramento),
+      prazo: textoSeguro(item.data_prazo || item.prazo || item['data.prazo']),
+      due: textoSeguro(item.data_prazo || item.prazo || item['data.prazo'], "-"),
       status: statusBom(item),
       severity: textoSeguro(item.risco, "Não classificado"),
       nature: textoSeguro(item.natureza || item.requisito, "Sem descrição"),
@@ -370,8 +356,10 @@ function listRecords(module) {
 
       <select onchange="atualizarFiltroBOM('status', this.value)">
         <option value="todos" ${bomState.status === 'todos' ? 'selected' : ''}>Status: todos</option>
-        <option value="Em aberto" ${bomState.status === 'Em aberto' ? 'selected' : ''}>Em aberto</option>
-        <option value="Encerrado" ${bomState.status === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
+<option value="Encerrado" ${bomState.status === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
+<option value="Sem Prazo" ${bomState.status === 'Sem Prazo' ? 'selected' : ''}>Sem Prazo</option>
+<option value="Vencido" ${bomState.status === 'Vencido' ? 'selected' : ''}>Vencido</option>
+<option value="No Prazo" ${bomState.status === 'No Prazo' ? 'selected' : ''}>No Prazo</option>
       </select>
 
       <select onchange="atualizarFiltroBOM('processo', this.value)">
@@ -416,14 +404,11 @@ function listRecords(module) {
 }
 function bomCards() {
   const total = bomAll.length;
-  const encerrados = bomAll.filter(x => x.status === 'Encerrado').length;
-
-const abertos = bomAll.filter(
-  x => x.status !== 'Encerrado'
-).length;
-
-  const processos = opcoesUnicas(bomAll, 'process').length;
-  const percentualEncerrado = total ? Math.round((encerrados / total) * 100) : 0;
+const encerrados = bomAll.filter(x => x.status === 'Encerrado').length;
+const semPrazo = bomAll.filter(x => x.status === 'Sem Prazo').length;
+const vencidos = bomAll.filter(x => x.status === 'Vencido').length;
+const noPrazo = bomAll.filter(x => x.status === 'No Prazo').length;
+const abertos = semPrazo + vencidos + noPrazo;
 
   return `<section class="mini-grid">
     <article><b>${total}</b><span>Total de BOMs</span></article>
