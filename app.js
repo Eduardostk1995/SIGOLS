@@ -30,12 +30,67 @@ const documents = [
   {id:6, name:'POL-DIR-002 - Política da Qualidade', type:'Política', folder:'00_Direção', created:'16/02/2023 10:20:18', status:'Publicado', version:'2.1', publish:'20/03/2026', owner:'Direção'},
 ];
 
-const boms = [
-  {id:238, type:'SAC', issuer:'Ana Martins', owner:'Bruno Rocha', local:'Filial 1', process:'Comercial', date:'04/05/2026', due:'09/05/2026', status:'Vence em 2 dias', severity:'Média', nature:'Cliente informou divergência entre item recebido e pedido aprovado.', immediate:'Segregado lote potencialmente afetado, comunicado o cliente e bloqueada nova expedição até conferência.', cause:'Falha na conferência cruzada entre pedido comercial e separação logística.', action:'Revisar checklist de separação e implantar dupla checagem para itens críticos.'},
-  {id:224, type:'Oportunidade de Melhoria', issuer:'Rafael Nogueira', owner:'Sofia Ribeiro', local:'Matriz', process:'Qualidade', date:'22/04/2026', due:'30/04/2026', status:'Vencido', severity:'Baixa', nature:'Fluxo de aprovação documental com retrabalho e pouca rastreabilidade.', immediate:'Mapeados documentos parados em consenso e priorizada aprovação dos documentos críticos.', cause:'Critérios de consenso não estavam suficientemente claros para os aprovadores.', action:'Criar régua de aprovação por tipo documental e prazo de resposta por responsável.'},
-  {id:213, type:'Auditoria Interna', issuer:'Camila Torres', owner:'Daniel Lima', local:'Filial 2', process:'Produção', date:'12/04/2026', due:'25/04/2026', status:'Vencido', severity:'Alta', nature:'Registro de não atendimento pontual identificado durante auditoria interna.', immediate:'Orientada liderança do setor e reforçado uso do formulário vigente até revisão sistêmica.', cause:'Treinamento anterior não contemplou a mudança do formulário operacional.', action:'Atualizar matriz de competências e realizar reciclagem com operadores do turno.'},
-  {id:205, type:'Planejamento de Mudanças', issuer:'Fernanda Alves', owner:'Lucas Moreira', local:'Matriz', process:'Engenharia', date:'01/04/2026', due:'20/05/2026', status:'No prazo', severity:'Média', nature:'Mudança planejada em equipamento crítico requer análise de riscos e comunicação às áreas.', immediate:'Aberta avaliação preliminar de riscos e bloqueada alteração até aprovação multidisciplinar.', cause:'Processo de mudança ainda dependia de comunicação informal entre Engenharia e Produção.', action:'Formalizar workflow de mudança com validação de Qualidade, Manutenção e Produção.'},
-];
+const boms = [let boms = [];
+
+async function carregarBOMReal() {
+
+  try {
+
+    const response = await fetch(
+      "/.netlify/functions/relatorio-bom-bi"
+    );
+
+    const resultado = await response.json();
+
+    console.log("BOM REAL:", resultado);
+
+    const dados = resultado.data || [];
+
+    boms = dados.map((item, index) => ({
+
+      id: item.bom || index + 1,
+
+      type: item.origem || "BOM",
+
+      issuer: item.emitente || "-",
+
+      owner: item.responsavel_encerramento || "-",
+
+      local: item.local || "-",
+
+      process: item.processos || "-",
+
+      date: item.criacao || "-",
+
+      due: item.data_encerramento || "-",
+
+      status: item.encerramento
+        ? "Encerrado"
+        : "Em aberto",
+
+      severity: item.risco || "Média",
+
+      nature: item.natureza || "Sem descrição",
+
+      immediate: item.causa_raiz_5m || "-",
+
+      cause: item.causa_raiz_5porques || "-",
+
+      action: item.evidencia || "-"
+
+    }));
+
+    console.log("BOMS TRATADOS:", boms);
+
+    render();
+
+  } catch (error) {
+
+    console.error("Erro ao carregar BOM:", error);
+
+  }
+
+}
 
 const ros = [
   {id:94, type:'RO', issuer:'Ana Martins', owner:'Bruno Rocha', local:'Filial 1', process:'Produção', date:'03/05/2026', due:'05/05/2026', status:'Encerrado', nature:'Ocorrência operacional registrada no setor produtivo para avaliação da liderança.', action:'Ajustada sequência operacional e encerrado após validação da supervisão.'},
@@ -210,4 +265,5 @@ function render(){
   if(state.page==='reports') return app.innerHTML = reports();
   if(state.page==='support') return app.innerHTML = support();
 }
+carregarBOMReal();
 render();
