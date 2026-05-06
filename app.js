@@ -63,7 +63,30 @@ function statusBom(item) {
     encerramento === '-' ||
     encerramento.toLowerCase() === 'null'
   ) {
-    return 'Em aberto';
+
+    const prazo = String(item.data_encerramento || '').trim();
+
+    if (!prazo) {
+      return 'Em aberto';
+    }
+
+    const hoje = new Date();
+
+    const partes = prazo.split('/');
+
+    if (partes.length === 3) {
+
+      const dataPrazo = new Date(
+        `${partes[2]}-${partes[1]}-${partes[0]}`
+      );
+
+      if (dataPrazo < hoje) {
+        return 'Vencido';
+      }
+
+    }
+
+    return 'No prazo';
   }
 
   return 'Encerrado';
@@ -394,7 +417,10 @@ function listRecords(module) {
 function bomCards() {
   const total = bomAll.length;
   const encerrados = bomAll.filter(x => x.status === 'Encerrado').length;
-  const abertos = total - encerrados;
+
+const abertos = bomAll.filter(
+  x => x.status !== 'Encerrado'
+).length;
 
   const processos = opcoesUnicas(bomAll, 'process').length;
   const percentualEncerrado = total ? Math.round((encerrados / total) * 100) : 0;
