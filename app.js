@@ -55,7 +55,18 @@ function textoSeguro(valor, padrao = '-') {
 }
 
 function statusBom(item) {
-  return item.encerramento ? 'Encerrado' : 'Em aberto';
+
+  const encerramento = String(item.encerramento || '').trim();
+
+  if (
+    encerramento === '' ||
+    encerramento === '-' ||
+    encerramento.toLowerCase() === 'null'
+  ) {
+    return 'Em aberto';
+  }
+
+  return 'Encerrado';
 }
 
 async function carregarBOMReal() {
