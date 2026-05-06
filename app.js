@@ -404,11 +404,15 @@ function listRecords(module) {
 }
 function bomCards() {
   const total = bomAll.length;
-const encerrados = bomAll.filter(x => x.status === 'Encerrado').length;
-const semPrazo = bomAll.filter(x => x.status === 'Sem Prazo').length;
-const vencidos = bomAll.filter(x => x.status === 'Vencido').length;
-const noPrazo = bomAll.filter(x => x.status === 'No Prazo').length;
-const abertos = semPrazo + vencidos + noPrazo;
+  const encerrados = bomAll.filter(x => x.status === 'Encerrado').length;
+  const semPrazo = bomAll.filter(x => x.status === 'Sem Prazo').length;
+  const vencidos = bomAll.filter(x => x.status === 'Vencido').length;
+  const noPrazo = bomAll.filter(x => x.status === 'No Prazo').length;
+  const abertos = semPrazo + vencidos + noPrazo;
+
+  const percentualEncerrado = total ? Math.round((encerrados / total) * 100) : 0;
+
+  const processos = opcoesUnicas(bomAll, 'process').length;
 
   return `<section class="mini-grid">
     <article><b>${total}</b><span>Total de BOMs</span></article>
@@ -417,9 +421,9 @@ const abertos = semPrazo + vencidos + noPrazo;
     <article><b>${percentualEncerrado}%</b><span>Taxa de encerramento</span></article>
   </section>
   <section class="mini-grid">
-    <article><b>${processos}</b><span>Processos envolvidos</span></article>
-    <article><b>${opcoesUnicas(bomAll, 'owner').length}</b><span>Responsáveis</span></article>
-    <article><b>${opcoesUnicas(bomAll, 'severity').length}</b><span>Classificações de risco</span></article>
+    <article><b>${vencidos}</b><span>Vencidos</span></article>
+    <article><b>${noPrazo}</b><span>No prazo</span></article>
+    <article><b>${semPrazo}</b><span>Sem prazo</span></article>
     <article><b>${getBOMFiltrado().length}</b><span>Registros filtrados</span></article>
   </section>`;
 }
