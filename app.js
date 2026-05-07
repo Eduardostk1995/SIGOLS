@@ -35,6 +35,7 @@ let bomAll = [];
 
 const bomState = {
   status: 'todos',
+  sla: 'todos',
   processo: 'todos',
   responsavel: 'todos',
   ano: 'todos',
@@ -127,7 +128,13 @@ function getBOMFiltrado() {
   let lista = [...bomAll];
 
   if (bomState.status !== 'todos') {
-    lista = lista.filter(x => x.status === bomState.status);
+  lista = lista.filter(x => x.condicao === bomState.status);
+  }
+
+  if (bomState.sla !== 'todos') {
+    lista = lista.filter(
+      x => x.sla === bomState.sla
+    );
   }
 
   if (bomState.processo !== 'todos') {
@@ -369,11 +376,33 @@ function listRecords(module) {
       >
 
       <select onchange="atualizarFiltroBOM('status', this.value)">
-        <option value="todos" ${bomState.status === 'todos' ? 'selected' : ''}>Status: todos</option>
-<option value="Encerrado" ${bomState.status === 'Encerrado' ? 'selected' : ''}>Encerrado</option>
-<option value="Sem Prazo" ${bomState.status === 'Sem Prazo' ? 'selected' : ''}>Sem Prazo</option>
-<option value="Vencido" ${bomState.status === 'Vencido' ? 'selected' : ''}>Vencido</option>
-<option value="No Prazo" ${bomState.status === 'No Prazo' ? 'selected' : ''}>No Prazo</option>
+        <option value="todos">Condição: todos</option>
+        <option value="Em Aberto">Em Aberto</option>
+        <option value="Encerrado">Encerrado</option>
+      </select>
+
+      <select onchange="atualizarFiltroBOM('sla', this.value)">
+
+        <option value="todos"
+          ${bomState.sla === 'todos' ? 'selected' : ''}>
+          SLA: todos
+        </option>
+
+        <option value="Vencido"
+          ${bomState.sla === 'Vencido' ? 'selected' : ''}>
+          Vencido
+        </option>
+
+        <option value="No Prazo"
+          ${bomState.sla === 'No Prazo' ? 'selected' : ''}>
+          No Prazo
+        </option>
+
+        <option value="Sem Prazo"
+          ${bomState.sla === 'Sem Prazo' ? 'selected' : ''}>
+          Sem Prazo
+        </option>
+
       </select>
 
       <select onchange="atualizarFiltroBOM('processo', this.value)">
