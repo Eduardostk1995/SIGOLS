@@ -84,21 +84,28 @@ async function carregarBOMReal() {
     const dados = resultado.data || [];
 
     bomAll = dados.map((item, index) => ({
-      id: item.bom || index + 1,
-      type: textoSeguro(item.origem, "BOM"),
-      issuer: textoSeguro(item.emitente),
-      owner: textoSeguro(item.responsavel_encerramento || item.destinatario),
-      local: textoSeguro(item.local),
-      process: textoSeguro(item.processos),
-      date: textoSeguro(item.criacao),
-      prazo: textoSeguro(item.data_prazo || item.prazo || item['data.prazo']),
-      due: textoSeguro(item.data_prazo || item.prazo || item['data.prazo'], "-"),
+      
+      id: item["data.bom"] || item.bom || index + 1,
+      type: textoSeguro(item["data.origem"] || item.origem, "BOM"),
+      issuer: textoSeguro(item["data.emitente"] || item.emitente),
+      owner: textoSeguro(
+        item["data.destinatario"] || item.destinatario || item.responsavel_encerramento
+      ),
+      local: textoSeguro(item["data.local"] || item.local),
+      process: textoSeguro(item["data.processos"] || item.processos),
+      date: textoSeguro(item["data.criacao"] || item.criacao),
+      prazo: textoSeguro(item["data.encerramento"] || item.encerramento),
+      due: textoSeguro(item["data.encerramento"] || item.encerramento, "-"),
+      dataEncerramento: textoSeguro(
+        item["data.data_encerramento"] || item.data_encerramento,
+       ""
+      ),
       condicao: condicaoBom(item),
       sla: slaBom(item),
       status: condicaoBom(item),
       severity: textoSeguro(item.risco, "Não classificado"),
       nature: textoSeguro(item.natureza || item.requisito, "Sem descrição"),
-      immediate: textoSeguro(item.causa_raiz_5m),
+      action: textoSeguro(item["data.evidencia"] || item.evidencia),
       cause: textoSeguro(item.causa_raiz_5porques),
       action: textoSeguro(item.evidencia),
       requisito: textoSeguro(item.requisito),
@@ -435,40 +442,36 @@ function bomCards() {
   </section>`;
 }
 function condicaoBom(item) {
-
   const dataEnc = textoSeguro(
-    item.data_encerramento,
-    ''
+    item["data.data_encerramento"] || item.data_encerramento,
+    ""
   );
 
-  if (!dataEnc) {
-    return 'Em Aberto';
+  if (!dataEnc || dataEnc.toLowerCase() === "null") {
+    return "Em Aberto";
   }
 
-  return 'Encerrado';
+  return "Encerrado";
 }
 function slaBom(item) {
-
   const prazo = textoSeguro(
-    item.encerramento,
-    ''
+    item["data.encerramento"] || item.encerramento,
+    ""
   );
 
-  if (!prazo) {
-    return 'Sem Prazo';
+  if (!prazo || prazo.toLowerCase() === "null") {
+    return "Sem Prazo";
   }
 
   const dataPrazo = dataBRParaDate(prazo);
-
   const hoje = new Date();
-
-  hoje.setHours(0,0,0,0);
+  hoje.setHours(0, 0, 0, 0);
 
   if (dataPrazo < hoje) {
-    return 'Vencido';
+    return "Vencido";
   }
 
-  return 'No Prazo';
+  return "No Prazo";
 }
 function grCards(){ return `<section class="mini-grid"><article><b>24</b><span>Metas ativas</span></article><article><b>76%</b><span>Média de resultado</span></article><article><b>9</b><span>Ações abertas</span></article><article><b>3</b><span>Metas em atenção</span></article></section>`; }
 function roCharts(){ return `<section class="analytics-grid"><article class="panel"><h2>Status dos ROs</h2><div class="bar-list"><p><span>Encerrado</span><b>40%</b></p><div><i style="width:40%"></i></div><p><span>No prazo</span><b>25%</b></p><div><i style="width:25%"></i></div><p><span>Em análise</span><b>20%</b></p><div><i style="width:20%"></i></div><p><span>Vencido</span><b>15%</b></p><div><i style="width:15%"></i></div></div></article><article class="panel"><h2>Origem dos registros</h2><div class="donut small"><span>60%</span></div><p class="muted">Maior concentração em Produção e Logística.</p></article></section>`; }
