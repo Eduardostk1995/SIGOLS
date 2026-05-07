@@ -1,25 +1,21 @@
 export async function handler() {
+
   try {
 
+    const API_URL = process.env.SIGO_API_URL;
+    const TOKEN = process.env.SIGO_TOKEN;
+
+    console.log("API:", API_URL);
+
     const response = await fetch(
-      `${process.env.SIGO_API_URL}/relatorio-bom-bi`,
+      `${API_URL}/relatorio-bom-bi`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.SIGO_TOKEN}`,
+          Authorization: `Bearer ${TOKEN}`,
           Accept: "application/json"
         }
       }
     );
-
-    if (!response.ok) {
-      return {
-        statusCode: response.status,
-        body: JSON.stringify({
-          erro: "Erro ao consultar API do SIGO",
-          status: response.status
-        })
-      };
-    }
 
     const data = await response.json();
 
@@ -42,4 +38,5 @@ export async function handler() {
     };
 
   }
+
 }
